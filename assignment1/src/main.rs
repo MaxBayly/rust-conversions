@@ -3,6 +3,7 @@
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
+//use math::round;
 
 fn main() -> std::io::Result<()>{
     let mut longest = 0;
@@ -45,9 +46,123 @@ fn main() -> std::io::Result<()>{
    }
 
     //println!("{:?}", alphabetical);
+    menu(grouped, longest);
     Ok(())
 }
 
+fn menu(array: Vec<Vec<String>>, longest: usize) {
+    loop {
+        println!("Enter the query string: ");
+        let mut query = String::new();
+        io::stdin()
+            .read_line(&mut query)
+            .expect("Failed to read line.");
+
+        query  = query.replace("\n", "");
+            
+        if query == "***".to_owned() {
+            break;
+        }
+        println!("Your query string is {}", query);
+
+        let string = count_sort(&query);
+        let difference: i32 = (longest - query.len()) as i32;
+        if (difference) < 0 {
+            println!("No anagrams exist for {}", query);
+            continue;
+        }
+        let mut append_string = (0..difference).map(|_| "9").collect::<String>();
+        append_string.push_str(&string);
+
+        if let Some(index) = get_scrabble_words(&append_string, &array) {
+            if array[index].len() == 2 {
+                println!("No anagrams exist for {}", query);
+            }
+            else {
+                println!("The anagrams for {} are:", query);
+                for string in array[index].iter() {
+                    println!("{}", string);
+                }
+            }
+        }
+        else {
+            println!("No anagrams exist for {}", query);
+        }
+        if difference == 0 {
+            println!("and no anagrams exist with a wildcard.");
+            continue;
+        }
+        else {
+            println!("without a wildcard.");
+            let words = get_wildcard_words(&query, &array, difference);
+            if words.len() == 0 {
+                println!("With a wildcard, no anagrams exist.");
+                for word in words.iter() {
+                    println!("{}", word);
+                }
+            }
+            else {
+                println!("With a wildcard, the anagrams are:");
+                for word in words.iter() {
+                    println!("{}", word);
+                }
+            }
+        }
+
+    }
+}
+
+fn get_scrabble_words(string: &str, array: &Vec<Vec<String>>) -> Option<usize> {
+    if array.len() == 0 {
+        return None; 
+    }
+    let mut lo = 0;
+    let mut hi: usize = array.len() - 1;
+    let mut mid: usize = (((hi + lo)/2) as f32).floor() as usize;
+
+    while lo < hi - 1 {
+        if string >= &array[mid][0] {
+            lo = mid;
+            mid = (((lo+hi)/2) as f32).floor() as usize;
+        }
+        else if string < &array[mid][0] {
+            hi = mid;
+            mid = (((lo+hi)/2) as f32).floor() as usize;
+        }
+        else{
+            return Some(mid);
+        }
+    }
+    if array[mid][0] == string {
+        return Some(mid);
+    }
+    else {
+        return None;
+    }
+}
+
+fn get_wildcard_words(string: &str, array: &Vec<Vec<String>>, difference: i32) -> Vec<String> {
+    let mut words = vec![];
+    let alphabet = (b'a'..=b'z')
+            .map(|c| c as char)
+            .filter(|c| c.is_alphabetic())
+            .collect::<Vec<_>>();
+    for char in alphabet.iter() {
+        let mut new_string = format!("{}{}", string, char);
+        new_string = count_sort(&new_string);
+        let mut append_string = (0..difference-1).map(|_| "9").collect::<String>();
+        append_string.push_str(&new_string);
+        if let Some(index) = get_scrabble_words(&append_string, &array) {
+            for i in 1..array[index].len() {
+                words.push(array[index][i].clone());
+            }
+        }
+        else {
+            continue;
+        }
+    }
+    return words;
+}
 
 fn count_sort(string: &str) -> String{
 
